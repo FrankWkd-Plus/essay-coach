@@ -6,13 +6,15 @@
 
 前端是原生 HTML/CSS/ES Modules，后端是一个 **Cloudflare Worker**：Static Assets 托管页面，D1 存遥测与任务，Cron Triggers 每日清理过期日志，Workers AI 在未配置外部 Key 时兜底。没有自建服务器，也没有 Docker。
 
+**线上站点：** https://essay-coach.frankwkd.workers.dev
+
 ## 预览
 
-以下截图来自本地 fixture 模式（模拟批改结果）：
+首页与管理台为本地 fixture 截图，批改报告为线上 Workers AI 真实结果：
 
-| 首页 | 批改报告 | 管理台 |
+| 首页（线上） | 批改报告（线上） | 管理台（本地 fixture） |
 | --- | --- | --- |
-| <img src="docs/preview-home.png" width="270"> | <img src="docs/preview-report.png" width="270"> | <img src="docs/preview-admin.png" width="270"> |
+| <img src="docs/preview-live-home.png" width="270"> | <img src="docs/preview-live-report.png" width="270"> | <img src="docs/preview-admin.png" width="270"> |
 
 ## 功能
 
@@ -34,7 +36,7 @@ browser (public/, ES Modules)
 Cloudflare Worker (src/worker.js)
    ├── fetch: /api/health, /api/grade, /api/jobs/:id, /api/admin/*
    ├── D1: request_logs / grading_jobs / settings
-   ├── Workers AI: @cf/qwen/qwen3-30b-a3b-fp8 (no-key fallback)
+   ├── Workers AI: @cf/meta/llama-3.3-70b-instruct-fp8-fast (no-key fallback)
    └── external: OpenAI-compatible /chat/completions (DeepSeek by default)
    scheduled: daily cron cleanup (UTC 03:15)
 ```
@@ -62,7 +64,7 @@ npm run dev:local       # http://127.0.0.1:8787
 npx wrangler login
 ```
 
-2. 创建 D1，并把输出里的 `database_id` 填到 `wrangler.toml` 的 `[[d1_databases]]` 中（替换全零占位符）：
+2. 创建 D1，并把输出里的 `database_id` 填到 `wrangler.toml` 的 `[[d1_databases]]` 中。当前仓库已填入本次部署的 ID；复用到你自己的 Cloudflare 账号时，请先创建自己的 D1 并替换：
 
 ```bash
 npx wrangler d1 create essay-coach-db --location apac
@@ -97,7 +99,7 @@ npx wrangler deploy --secrets-file .env.production
 
 ### 可选：接入 DeepSeek 提升质量
 
-不配置 Key 时使用 Workers AI 的 Qwen3 30B（免费额度 10,000 Neurons/天，质量低于 DeepSeek）。配置后自动优先走外部接口：
+不配置 Key 时使用 Workers AI 的 Llama 3.3 70B（免费额度 10,000 Neurons/天，质量低于 DeepSeek）。配置后自动优先走外部接口：
 
 ```bash
 npx wrangler secret put AI_API_KEY
@@ -144,9 +146,11 @@ D1 中三张表：
 npm test
 ```
 
-47 个 Node 单元测试覆盖词数、输入边界、评分归一化、JSON 提取、prompt 关键项、外部/内置 AI 响应解析、URL 防护、限流判断、IP 掩码、管理员鉴权与日志写入。
+49 个 Node 单元测试覆盖词数、输入边界、评分归一化、JSON 提取、prompt 关键项、外部/内置 AI 响应解析、URL 防护、限流判断、IP 掩码、管理员鉴权、日志写入，以及本地模型常见的键名变体/拼写错误。
 
 本地端到端已在 `wrangler dev` 验证：批改、生成范文、幂等重放、任务查询、400/401/404/405/429、管理台统计/日志详情/设置/清理、Cron 清理、D1 完整遥测。
+
+线上已验证：Workers AI 真实批改（Llama 3.3 70B）、浏览器实机提交、任务恢复、管理台统计/日志详情、完整作文与真实 IP 落库、CSP/安全响应头。
 
 ## 目录
 
@@ -172,7 +176,7 @@ scripts/deploy.sh       登录检查 + 远端建表 + 部署
 
 - Workers AI 兜底的 JSON 稳定性与评分质量低于 DeepSeek；生产建议配置 `AI_API_KEY`。
 - 不做图片 OCR、多用户账号、云端历史同步、付费系统。
-- Workers AI 免费额度 10,000 Neurons/天；全站默认 100 次/24h，防止额度被刷爆。D1 免费额度足够小流量。
+- Workers AI 免费额度 10,000 Neurons/天；Llama 3.3 70B 大约能支撑 30 次批改/天，因此全站默认 30 次/24h。配置 DeepSeek Key 后可在管理台调高。D1 免费额度足够小流量。
 - 日志会保存完整作文与 IP，这是需求本身；如果部署给未成年人使用，请在页面/学校层面补充监护人或合规告知。
 
 ## License

@@ -98,21 +98,44 @@ function objectList(value, maxItems, mapper) {
     .filter(Boolean);
 }
 
+// Models occasionally add a leading slash to JSON keys or misspell a
+// schema key. Accept common variants without trusting a model-supplied score.
+function pick(obj, ...names) {
+  if (!isPlainObject(obj)) return undefined;
+  const normalized = {};
+  for (const [key, value] of Object.entries(obj)) {
+    normalized[key.replace(/^\/+/, '').toLowerCase()] = value;
+  }
+  for (const name of names) {
+    const value = normalized[name.toLowerCase()];
+    if (value !== undefined && value !== null && value !== '') return value;
+  }
+  return undefined;
+}
+
+function stripSentenceLabel(value) {
+  return String(value ?? '')
+    .replace(/^\s*(原句|original)\s*[：:]\s*/i, '')
+    .replace(/^\s*(改句|revised|correction)\s*[：:]\s*/i, '')
+    .trim();
+}
+
 function normalizeStyleCheck(value) {
   const parsed = new Map();
   if (Array.isArray(value)) {
     for (const item of value) {
       if (!isPlainObject(item)) continue;
-      const id = String(item.id || '');
+      const id = String(pick(item, 'id', 'name', 'key') || '').replace(/^\/+/, '').trim().toLowerCase();
       if (!STYLE_ITEMS.some(entry => entry.id === id)) continue;
-      const pass = item.pass === true || item.pass === 'true'
+      const rawPass = pick(item, 'pass', 'passed', 'ok');
+      const pass = rawPass === true || rawPass === 'true'
         ? true
-        : item.pass === false || item.pass === 'false'
+        : rawPass === false || rawPass === 'false'
           ? false
           : null;
       parsed.set(id, {
         pass,
-        note: cleanText(item.note, 200) || 'AI 未返回说明'
+        note: cleanText(pick(item, 'note', 'reason', 'explanation'), 200) || 'AI 未返回说明'
       });
     }
   }
@@ -146,27 +169,27 @@ export function extractJson(value) {
 }
 
 export function normalizeReport(parsed, input) {
-  const topicType = normalizeTopic(parsed.topic_type);
-  const styleCheck = normalizeStyleCheck(parsed.style_check);
+  const topicType = normalizeTopic(pick(parsed, 'topic_type', 'topicType', 'type'));
+  const styleCheck = normalizeStyleCheck(pick(parsed, 'style_check', 'styleCheck', 'checklist'));
 
   if (input.mode === 'generate') {
-    const essay = cleanText(parsed.essay, 5000);
+    const essay = cleanText(pick(parsed, 'essay', 'upgraded_essay', 'upgradedEssay'), 5000);
     if (essay.length < 20) throw new OutputError('missing generated essay');
-    const outline = objectList(parsed.outline, 6, (item, index) => {
+    const outline = objectList(pick(parsed, 'outline', 'structure'), 6, (item, index) => {
       if (!isPlainObject(item)) return null;
-      const goal = cleanText(item.goal, 200);
+      const goal = cleanText(pick(item, 'goal', 'content', 'description'), 200);
       if (!goal) return null;
       return {
         paragraph: Number.isInteger(item.paragraph) ? item.paragraph : index + 1,
         goal,
-        key_points: stringList(item.key_points, 5, 120)
+        key_points: stringList(pick(item, 'key_points', 'keyPoints', 'points', 'details'), 5, 120)
       };
     });
-    const highlights = objectList(parsed.highlights, 5, item => {
+    const highlights = objectList(pick(parsed, 'highlights', 'examples'), 5, item => {
       if (!isPlainObject(item)) return null;
-      const sentence = cleanText(item.sentence, 300);
+      const sentence = cleanText(pick(item, 'sentence', 'content', 'text', 'example'), 300);
       if (!sentence) return null;
-      return { pattern: cleanText(item.pattern, 80), sentence };
+      return { pattern: cleanText(pick(item, 'pattern', 'name', 'type'), 80), sentence };
     });
     return {
       mode: 'generate',
@@ -176,16 +199,20 @@ export function normalizeReport(parsed, input) {
       essay_word_count: countWords(essay),
       highlights,
       style_check: styleCheck,
-      summary: cleanText(parsed.summary, 400) || '范文已生成，请对照风格清单自查。'
+      summary: cleanText(pick(parsed, 'summary', 'overview', 'comment'), 400) || '范文已生成，请对照风格清单自查。'
     };
   }
 
-  if (!isPlainObject(parsed.subscores)) throw new OutputError('missing subscores');
-  const content = halfPoint(parsed.subscores.content, 'content');
-  const language = halfPoint(parsed.subscores.language, 'language');
-  const structure = halfPoint(parsed.subscores.structure, 'structure');
+  const subscores = pick(parsed, 'subscores', 'scores');
+  if (!isPlainObject(subscores)) throw new OutputError('missing subscores');
+  const content = halfPoint(pick(subscores, 'content', 'content_score'), 'content');
+  const language = halfPoint(
+    pick(subscores, 'language', 'lang', 'langauge', 'lanaguage', 'langage'),
+    'language'
+  );
+  const structure = halfPoint(pick(subscores, 'structure', 'organisation', 'organization'), 'structure');
   const total = Math.round((content + language + structure) * 2) / 2;
-  const upgraded = cleanText(parsed.upgraded_essay, 5000);
+  const upgraded = cleanText(pick(parsed, 'upgraded_essay', 'upgradedEssay', 'revised_essay'), 5000);
 
   return {
     mode: 'grade',
@@ -194,33 +221,33 @@ export function normalizeReport(parsed, input) {
     overall_score: total,
     band: bandFor(total),
     word_count: countWords(input.essay),
-    summary: cleanText(parsed.summary, 600) || 'AI 未返回总评。',
-    strengths: objectList(parsed.strengths, 5, item => {
+    summary: cleanText(pick(parsed, 'summary', 'overview', 'comment'), 600) || 'AI 未返回总评。',
+    strengths: objectList(pick(parsed, 'strengths', 'highlights'), 5, item => {
       if (!isPlainObject(item)) return null;
-      const point = cleanText(item.point, 160);
+      const point = cleanText(pick(item, 'point', 'content', 'text', 'title'), 160);
       if (!point) return null;
-      return { point, evidence: cleanText(item.evidence, 300) };
+      return { point, evidence: cleanText(pick(item, 'evidence', 'quote', 'example'), 300) };
     }),
-    improvements: objectList(parsed.improvements, 5, item => {
+    improvements: objectList(pick(parsed, 'improvements', 'suggestions'), 5, item => {
       if (!isPlainObject(item)) return null;
-      const issue = cleanText(item.issue, 160);
+      const issue = cleanText(pick(item, 'issue', 'content', 'problem', 'point'), 160);
       if (!issue) return null;
       return {
         issue,
-        suggestion: cleanText(item.suggestion, 300),
-        example: cleanText(item.example, 300)
+        suggestion: cleanText(pick(item, 'suggestion', 'advice'), 300),
+        example: cleanText(pick(item, 'example'), 300)
       };
     }),
-    sentence_fixes: objectList(parsed.sentence_fixes, 4, item => {
+    sentence_fixes: objectList(pick(parsed, 'sentence_fixes', 'sentenceFixes', 'fixes'), 4, item => {
       if (!isPlainObject(item)) return null;
-      const original = cleanText(item.original, 300);
-      const revised = cleanText(item.revised, 300);
+      const original = cleanText(stripSentenceLabel(pick(item, 'original', 'content', 'sentence', 'text')), 300);
+      const revised = cleanText(stripSentenceLabel(pick(item, 'revised', 'correction', 'suggestion')), 300);
       if (!original || !revised) return null;
-      return { original, revised, reason: cleanText(item.reason, 200) };
+      return { original, revised, reason: cleanText(pick(item, 'reason', 'note'), 200) };
     }),
     style_check: styleCheck,
     upgraded_essay: upgraded || null,
     upgraded_word_count: upgraded ? countWords(upgraded) : 0,
-    next_steps: stringList(parsed.next_steps, 4, 160)
+    next_steps: stringList(pick(parsed, 'next_steps', 'nextSteps', 'steps'), 4, 160)
   };
 }

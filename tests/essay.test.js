@@ -146,6 +146,28 @@ test('normalizeReport rejects missing grade subscores', () => {
   assert.throws(() => normalizeReport({ topic_type: '变化' }, gradeInput()), OutputError);
 });
 
+test('normalizeReport tolerates leading-slash keys and language typos from local models', () => {
+  const report = normalizeReport({
+    topic_type: '变化',
+    subscores: { Lanaguage: 4, content: 4.5, structure: 4.5 },
+    summary: '结构清楚。',
+    strengths: [{ '/content': '有具体比喻', '/evidence': 'as noisy as a train station' }],
+    improvements: [{ '/content': '结尾偏空', '/suggestion': '补一个具体行动' }],
+    sentence_fixes: [{ '/content': '原句：It is a good habit.', revised: 'It is a habit worth keeping.', reason: '更具体' }],
+    style_check: [{ '/id': 'three_paragraphs', pass: true, note: 'ok' }],
+    upgraded_essay: ESSAY
+  }, gradeInput());
+
+  assert.deepEqual(report.subscores, { content: 4.5, language: 4, structure: 4.5 });
+  assert.equal(report.overall_score, 13);
+  assert.equal(report.band, '优秀');
+  assert.equal(report.strengths[0].point, '有具体比喻');
+  assert.equal(report.strengths[0].evidence, 'as noisy as a train station');
+  assert.equal(report.improvements[0].issue, '结尾偏空');
+  assert.equal(report.sentence_fixes[0].original, 'It is a good habit.');
+  assert.equal(report.style_check.find(item => item.id === 'three_paragraphs').pass, true);
+});
+
 test('normalizeReport supports generate mode', () => {
   const report = normalizeReport({
     topic_type: '记忆',

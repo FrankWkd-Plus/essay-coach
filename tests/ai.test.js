@@ -126,15 +126,35 @@ test('external provider rejects a non-https configured URL', async () => {
   }, input), (error) => error.code === 'ai_config_invalid');
 });
 
-test('Workers AI provider reads the response field and retries without chat_template_kwargs', async () => {
+test('Workers AI provider reads the response field with JSON mode', async () => {
   let calls = 0;
   const env = {
     AI: {
       async run(model, options) {
         calls += 1;
         assert.equal(model, DEFAULT_WORKERS_MODEL);
-        if (options.chat_template_kwargs) throw new Error('unknown field chat_template_kwargs');
+        assert.deepEqual(options.response_format, { type: 'json_object' });
+        assert.equal(options.chat_template_kwargs, undefined);
         return { response: '{"ok":true}', usage: { prompt_tokens: 1, completion_tokens: 2, total_tokens: 3 } };
+      }
+    }
+  };
+  const result = await callAI(env, input);
+  assert.equal(calls, 1);
+  assert.equal(result.provider, 'workers-ai');
+  assert.equal(result.text, '{"ok":true}');
+});
+
+test('Qwen3 Workers AI model retries without chat_template_kwargs', async () => {
+  let calls = 0;
+  const env = {
+    WORKERS_AI_MODEL: '@cf/qwen/qwen3-30b-a3b-fp8',
+    AI: {
+      async run(model, options) {
+        calls += 1;
+        assert.equal(model, '@cf/qwen/qwen3-30b-a3b-fp8');
+        if (options.chat_template_kwargs) throw new Error('unknown field chat_template_kwargs');
+        return { response: '{"ok":true}' };
       }
     }
   };

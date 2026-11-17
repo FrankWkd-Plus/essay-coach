@@ -77,6 +77,7 @@ SAFETY AND HONESTY:
 OUTPUT FORMAT:
 Return ONLY one valid JSON object. No markdown fences, no commentary before or after. Use exactly this shape:
 ${mode === 'generate' ? generateSchema() : gradeSchema()}
+Use the exact keys and spelling shown above. Never prefix object keys with "/", and spell "language" exactly.
 
 STYLE RESOURCES (use them naturally, never paste them as a list into the essay):
 ${PATTERN_LIBRARY}

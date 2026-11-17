@@ -3,7 +3,7 @@ import { STYLE_ITEMS } from './essay.js';
 
 export const DEFAULT_API_URL = 'https://api.deepseek.com/chat/completions';
 export const DEFAULT_EXTERNAL_MODEL = 'deepseek-chat';
-export const DEFAULT_WORKERS_MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';
+export const DEFAULT_WORKERS_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 const AI_TIMEOUT_MS = 50_000;
 
 export class AiError extends Error {
@@ -149,12 +149,15 @@ async function callWorkersAi(env, input, options) {
   const model = env.WORKERS_AI_MODEL || DEFAULT_WORKERS_MODEL;
   const messages = buildMessages(input);
   const base = { messages, max_tokens: 1600, temperature: 0.2 };
+  if (String(env.AI_JSON_MODE || 'true') !== 'false') {
+    base.response_format = { type: 'json_object' };
+  }
+  const first = model.includes('qwen3')
+    ? { ...base, chat_template_kwargs: { enable_thinking: false } }
+    : base;
   let result;
   try {
-    result = await withTimeout(
-      env.AI.run(model, { ...base, chat_template_kwargs: { enable_thinking: false } }),
-      AI_TIMEOUT_MS
-    );
+    result = await withTimeout(env.AI.run(model, first), AI_TIMEOUT_MS);
   } catch (error) {
     if (error instanceof AiError) throw error;
     try {
@@ -167,7 +170,10 @@ async function callWorkersAi(env, input, options) {
   const text = typeof result?.response === 'string'
     ? result.response
     : contentFromOpenAi(result);
-  if (!text || !text.trim()) throw new AiError('ai_invalid_response', 502, 'empty Workers AI content');
+  if (!text || !text.trim()) {
+    const preview = JSON.stringify(result).slice(0, 1200);
+    throw new AiError('ai_invalid_response', 502, `empty Workers AI content; raw=${preview}`);
+  }
   return { text, usage: usageFrom(result), provider: 'workers-ai', model };
 }
 

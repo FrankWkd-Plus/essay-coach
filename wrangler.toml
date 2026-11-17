@@ -14,7 +14,7 @@ binding = "AI"
 binding = "DB"
 database_name = "essay-coach-db"
 # Replace with the id printed by: npx wrangler d1 create essay-coach-db
-database_id = "00000000-0000-0000-0000-000000000000"
+database_id = "0f03816e-4ee8-41e2-8b3f-e08a153408e5"
 
 [triggers]
 crons = ["15 3 * * *"]
@@ -23,7 +23,7 @@ crons = ["15 3 * * *"]
 AI_API_URL = "https://api.deepseek.com/chat/completions"
 AI_MODEL = "deepseek-chat"
 AI_JSON_MODE = "true"
-WORKERS_AI_MODEL = "@cf/qwen/qwen3-30b-a3b-fp8"
+WORKERS_AI_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
 
 [observability]
 enabled = true

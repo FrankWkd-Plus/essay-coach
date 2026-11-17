@@ -3,7 +3,7 @@ import { HttpError } from './http.js';
 export const DEFAULT_CONFIG = Object.freeze({
   hourlyPerIp: 10,
   dailyPerIp: 30,
-  globalDaily: 100,
+  globalDaily: 30,
   retentionDays: 30,
   lastCleanupAt: null
 });
