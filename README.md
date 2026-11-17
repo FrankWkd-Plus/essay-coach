@@ -74,6 +74,14 @@ npx wrangler d1 create essay-coach-db --location apac
 npm run db:remote
 ```
 
+也可以直接运行部署脚本（完成 D1 创建、替换 `database_id` 之后）：
+
+```bash
+./scripts/deploy.sh
+```
+
+脚本会检查登录、应用远端 schema、生成 `.admin-token`/`.env.production`，然后 `wrangler deploy`。
+
 4. 生成管理员口令并设置 Secret（`.admin-token` 与 `.env.production` 都已 gitignore）：
 
 ```bash
@@ -157,6 +165,7 @@ schema.sql              D1 建表语句
 wrangler.toml           生产配置（D1 + AI + Cron + vars）
 wrangler.local.toml     本地 fixture 配置（无 AI binding）
 tests/                  node --test
+scripts/deploy.sh       登录检查 + 远端建表 + 部署
 ```
 
 ## 已知限制
