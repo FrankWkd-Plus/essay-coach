@@ -1,0 +1,21 @@
+# Local fixture config: no AI binding, so `wrangler dev` works without a Cloudflare login.
+# Set DEV_FIXTURE=true in .dev.vars. Production config lives in wrangler.toml.
+name = "essay-coach-local"
+main = "src/worker.js"
+compatibility_date = "2026-11-17"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "essay-coach-db"
+database_id = "00000000-0000-0000-0000-000000000000"
+
+[vars]
+AI_API_URL = "https://api.deepseek.com/chat/completions"
+AI_MODEL = "deepseek-chat"
+AI_JSON_MODE = "true"
+WORKERS_AI_MODEL = "@cf/qwen/qwen3-30b-a3b-fp8"

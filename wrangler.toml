@@ -1,0 +1,29 @@
+name = "essay-coach"
+main = "src/worker.js"
+compatibility_date = "2026-11-17"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = ["/api/*"]
+
+[ai]
+binding = "AI"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "essay-coach-db"
+# Replace with the id printed by: npx wrangler d1 create essay-coach-db
+database_id = "00000000-0000-0000-0000-000000000000"
+
+[triggers]
+crons = ["15 3 * * *"]
+
+[vars]
+AI_API_URL = "https://api.deepseek.com/chat/completions"
+AI_MODEL = "deepseek-chat"
+AI_JSON_MODE = "true"
+WORKERS_AI_MODEL = "@cf/qwen/qwen3-30b-a3b-fp8"
+
+[observability]
+enabled = true

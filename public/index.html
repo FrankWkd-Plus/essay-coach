@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="theme-color" content="#f6f1e6">
+  <title>Essay Coach · 中考英语作文批改</title>
+  <meta name="description" content="15 分制中考英语作文 AI 批改：分数、逐句修改、三段式风格清单、升级版范文。">
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+
+  <header class="site-header">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 48 48" aria-hidden="true">
+        <path d="M10 38c7-1 13-4 18-9 5-5 8-11 9-18-7 1-13 4-18 9-5 5-8 11-9 18Z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+        <path d="M16 32c4-2 8-5 11-9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+        <circle cx="34" cy="14" r="2.4" fill="currentColor"/>
+      </svg>
+      <div>
+        <p class="eyebrow">ESSAY COACH</p>
+        <h1>中考英语作文批改</h1>
+      </div>
+    </div>
+    <div class="header-actions">
+      <span id="provider-badge" class="badge" hidden>检测中</span>
+      <button id="privacy-button" class="link-button" type="button">隐私说明</button>
+      <a class="link-button" href="#/admin">管理</a>
+    </div>
+  </header>
+
+  <div id="fixture-banner" class="banner" hidden>
+    本地演示模式：批改结果为模拟数据，不调用真实 AI。
+  </div>
+
+  <main id="main">
+    <section id="grade-view" class="workspace">
+      <section class="panel input-panel" aria-labelledby="input-title">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">STEP 01</p>
+            <h2 id="input-title">把你的作文放进来</h2>
+          </div>
+          <div class="tabs" role="tablist" aria-label="任务类型">
+            <button id="tab-grade" class="tab is-active" type="button" role="tab" aria-selected="true" aria-controls="essay-block">批改作文</button>
+            <button id="tab-generate" class="tab" type="button" role="tab" aria-selected="false" aria-controls="essay-block">从题目写范文</button>
+          </div>
+        </div>
+
+        <form id="essay-form" novalidate>
+          <label class="field">
+            <span class="field-label">作文题目 <em>可选</em></span>
+            <input id="title-input" name="title" type="text" maxlength="300" autocomplete="off"
+                   placeholder="例如：A Change in My Life">
+          </label>
+
+          <div id="essay-block" class="field">
+            <div class="field-row">
+              <label class="field-label" for="essay-input">作文稿</label>
+              <span id="word-counter" class="word-counter" aria-live="polite">0 词 · 目标 100–140</span>
+            </div>
+            <textarea id="essay-input" name="essay" rows="12" maxlength="4000" spellcheck="false"
+                      placeholder="粘贴或输入英文作文稿……"></textarea>
+            <div class="field-actions">
+              <label class="file-button" for="file-input">上传 .txt / .md</label>
+              <input id="file-input" type="file" class="visually-hidden" accept=".txt,.md,text/plain,text/markdown">
+              <button id="sample-button" class="link-button" type="button">填入示例作文</button>
+            </div>
+          </div>
+
+          <label class="field">
+            <span class="field-label">额外要求 <em>可选</em></span>
+            <input id="requirements-input" name="requirements" type="text" maxlength="500" autocomplete="off"
+                   placeholder="例如：重点看结尾，控制在 120 词">
+          </label>
+
+          <div class="form-footer">
+            <p class="fine-print">提交即表示同意：题目、作文与 AI 结果会连同 IP 记录，仅管理员可见，默认保留 30 天，用于防滥用。请勿提交真实姓名等敏感信息。</p>
+            <div class="submit-row">
+              <button id="submit-button" class="primary-button" type="submit">开始批改</button>
+              <button id="cancel-button" class="secondary-button" type="button" hidden>取消</button>
+            </div>
+          </div>
+
+          <div id="form-status" class="status" role="status" aria-live="polite" hidden>
+            <span class="status-spinner" aria-hidden="true"></span>
+            <span id="status-text"></span>
+            <button id="status-action" class="link-button" type="button" hidden>查询结果</button>
+          </div>
+        </form>
+
+        <section id="history-section" class="history" hidden>
+          <div class="history-heading">
+            <h3>最近批改</h3>
+            <button id="clear-history" class="link-button" type="button">清空</button>
+          </div>
+          <div id="history-list" class="history-list"></div>
+        </section>
+      </section>
+
+      <section class="panel result-panel" aria-labelledby="result-title">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">STEP 02</p>
+            <h2 id="result-title">批改报告</h2>
+          </div>
+          <span id="result-mode-badge" class="badge" hidden></span>
+        </div>
+
+        <div id="empty-state" class="empty-state">
+          <div class="empty-mark">15</div>
+          <p>左侧提交后，这里会出现分数、逐句修改和风格清单。</p>
+          <ul class="empty-list">
+            <li>15 分制：内容 5 + 语言 5 + 结构 5</li>
+            <li>三段式、标志句型、词数与结尾单独诊断</li>
+            <li>升级版可复制、下载、打印</li>
+          </ul>
+        </div>
+
+        <div id="loading-state" class="loading-state" hidden>
+          <div class="loading-ring" aria-hidden="true"></div>
+          <p class="loading-title">AI 正在批改</p>
+          <p id="loading-detail" class="fine-print">正在读懂题目……</p>
+          <p id="loading-elapsed" class="fine-print">已等待 0 秒</p>
+        </div>
+
+        <div id="report" class="report" hidden></div>
+      </section>
+    </section>
+
+    <section id="admin-view" class="admin-view" hidden>
+      <div class="panel admin-panel">
+        <div class="admin-header">
+          <div>
+            <p class="eyebrow">ADMIN</p>
+            <h2>遥测管理台</h2>
+            <p class="admin-warning">日志含用户作文、IP 与 AI 输出，仅限管理员查看，请勿公开分享。</p>
+          </div>
+          <div class="admin-header-actions">
+            <span id="admin-state" class="badge">未登录</span>
+            <a class="link-button" href="#">返回批改</a>
+            <button id="admin-logout" class="link-button" type="button" hidden>退出</button>
+          </div>
+        </div>
+
+        <form id="admin-login-form" class="admin-login" novalidate>
+          <label class="field">
+            <span class="field-label">管理员口令</span>
+            <input id="admin-token" type="password" maxlength="256" autocomplete="current-password"
+                   placeholder="输入 ADMIN_TOKEN">
+          </label>
+          <button class="primary-button" type="submit">进入管理台</button>
+          <p id="admin-login-status" class="fine-print" role="status"></p>
+        </form>
+
+        <div id="admin-dashboard" hidden>
+          <div id="admin-stats" class="stat-grid"></div>
+
+          <div class="admin-toolbar">
+            <label class="inline-field">类型
+              <select id="log-type">
+                <option value="">全部</option>
+                <option value="ai_request">ai_request</option>
+                <option value="ai_result">ai_result</option>
+                <option value="ai_error">ai_error</option>
+                <option value="ai_invalid_output">ai_invalid_output</option>
+                <option value="validation_error">validation_error</option>
+                <option value="rate_limited">rate_limited</option>
+                <option value="job_read">job_read</option>
+                <option value="admin_login_ok">admin_login_ok</option>
+                <option value="admin_login_failed">admin_login_failed</option>
+                <option value="admin_unauthorized">admin_unauthorized</option>
+                <option value="admin_view">admin_view</option>
+                <option value="admin_cleanup">admin_cleanup</option>
+                <option value="cron_cleanup">cron_cleanup</option>
+                <option value="cron_error">cron_error</option>
+              </select>
+            </label>
+            <label class="inline-field">IP
+              <input id="log-ip" type="text" maxlength="45" placeholder="精确 IP">
+            </label>
+            <label class="inline-field">时间
+              <select id="log-range">
+                <option value="1h">最近 1 小时</option>
+                <option value="24h" selected>最近 24 小时</option>
+                <option value="7d">最近 7 天</option>
+                <option value="30d">最近 30 天</option>
+              </select>
+            </label>
+            <label class="checkbox"><input id="mask-ip" type="checkbox" checked> 掩码显示 IP</label>
+            <button id="refresh-logs" class="secondary-button" type="button">刷新</button>
+          </div>
+
+          <div id="admin-logs" class="log-table-wrap"></div>
+          <div id="admin-pagination" class="pagination"></div>
+
+          <section class="admin-settings">
+            <div class="section-heading">
+              <h3>限流与保留</h3>
+              <p>全站 24h 额度是防刷的最终兜底；IP 限流是尽力而为。</p>
+            </div>
+            <form id="settings-form" class="settings-grid">
+              <label>每小时 / IP <input id="setting-hourly" type="number" min="1" max="100"></label>
+              <label>24h / IP <input id="setting-daily" type="number" min="1" max="500"></label>
+              <label>全站 24h <input id="setting-global" type="number" min="10" max="5000"></label>
+              <label>日志保留天数 <input id="setting-retention" type="number" min="1" max="365"></label>
+              <button class="primary-button" type="submit">保存设置</button>
+            </form>
+            <div class="cleanup-row">
+              <label>清理早于 <input id="cleanup-days" type="number" min="1" max="365" value="30"> 天的日志</label>
+              <button id="cleanup-button" class="danger-button" type="button">立即清理</button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>Essay Coach · 中考英语作文批改 · <span id="footer-provider">AI 服务检测中</span></p>
+    <p class="fine-print">AI 评分仅供参考，不能替代老师评语。请勿提交真实姓名、联系方式等敏感信息。</p>
+  </footer>
+
+  <dialog id="privacy-dialog" class="dialog">
+    <div class="dialog-heading">
+      <h2>隐私与遥测说明</h2>
+      <button id="close-privacy" class="link-button" type="button">关闭</button>
+    </div>
+    <p>这个站点是一个学习工具。为了防滥用、排查故障和限制成本，服务器会记录每次请求的以下信息：</p>
+    <ul>
+      <li>IP 地址、User-Agent、来源页面、国家/边缘节点等请求元数据；</li>
+      <li>你提交的题目、作文稿、额外要求，以及 AI 返回的完整批改结果；</li>
+      <li>请求类型、HTTP 状态、耗时、任务 ID 和错误码。</li>
+    </ul>
+    <p>日志仅管理员可读，默认保留 30 天，之后由每日定时任务或管理员手动清理。管理台默认掩码显示 IP。请不要在作文中写入真实姓名、电话、住址或其他敏感信息。</p>
+    <p class="fine-print">批改结果由 AI 生成，可能存在误判，仅用于学习参考。最近批改记录保存在你自己的浏览器 localStorage 中，可随时清空。</p>
+    <button id="close-privacy-bottom" class="primary-button" type="button">知道了</button>
+  </dialog>
+
+  <dialog id="log-dialog" class="dialog log-dialog">
+    <div class="dialog-heading">
+      <h2>日志详情</h2>
+      <button id="close-log-dialog" class="link-button" type="button">关闭</button>
+    </div>
+    <pre id="log-detail" class="log-detail"></pre>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>

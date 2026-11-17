@@ -1,0 +1,11 @@
+# Copy this file to .dev.vars for local development (gitignored).
+# DEV_FIXTURE returns a deterministic canned report instead of calling an AI.
+DEV_FIXTURE="true"
+ADMIN_TOKEN="local-admin-token-change-me"
+
+# Optional: set a real OpenAI-compatible key to test the external provider.
+# AI_API_KEY="sk-..."
+# AI_API_URL="https://api.deepseek.com/chat/completions"
+# AI_MODEL="deepseek-chat"
+# AI_JSON_MODE="true"
+# WORKERS_AI_MODEL="@cf/qwen/qwen3-30b-a3b-fp8"
